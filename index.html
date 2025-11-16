@@ -33,6 +33,7 @@
             color: white;
             padding: 40px;
             text-align: center;
+            position: relative;
         }
 
         .header h1 {
@@ -44,6 +45,85 @@
         .header p {
             font-size: 1.1em;
             opacity: 0.9;
+        }
+
+        /* כפתורי בקרה */
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .control-btn {
+            background: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+            color: white;
+            display: none;
+        }
+
+        .btn-cancel {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+            display: none;
+        }
+
+        .btn-print {
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+            color: white;
+        }
+
+        .btn-export {
+            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+            color: white;
+        }
+
+        .edit-mode-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ffc107;
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+            display: none;
+            z-index: 1000;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
 
         .content {
@@ -242,12 +322,24 @@
         }
 
         .editable {
-            cursor: text;
+            cursor: default;
+            transition: all 0.3s ease;
         }
 
-        .editable:hover {
-            background-color: rgba(102, 126, 234, 0.05);
+        .editable[contenteditable="true"] {
+            cursor: text;
+            outline: none;
+        }
+
+        .editable[contenteditable="true"]:hover {
+            background-color: rgba(102, 126, 234, 0.1);
             border-radius: 3px;
+        }
+
+        .editable[contenteditable="true"]:focus {
+            background-color: rgba(102, 126, 234, 0.15);
+            border-radius: 3px;
+            outline: 2px solid #667eea;
         }
 
         .footer {
@@ -256,6 +348,43 @@
             text-align: center;
             padding: 20px;
             font-size: 0.9em;
+        }
+
+        /* הודעות */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1001;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-right: 4px solid #28a745;
+        }
+
+        .toast.error {
+            border-right: 4px solid #dc3545;
+        }
+
+        .toast.info {
+            border-right: 4px solid #2193b0;
         }
 
         @media print {
@@ -267,6 +396,10 @@
             }
             .risk-card {
                 page-break-inside: avoid;
+            }
+            .control-panel,
+            .edit-mode-indicator {
+                display: none !important;
             }
         }
 
@@ -283,10 +416,45 @@
             .summary-stats {
                 flex-direction: column;
             }
+            .control-panel {
+                left: 10px;
+                top: 10px;
+            }
+            .edit-mode-indicator {
+                right: 10px;
+                top: 10px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- כפתורי בקרה -->
+    <div class="control-panel">
+        <button class="control-btn btn-edit" onclick="toggleEditMode()">
+            ✏️ <span id="editBtnText">מצב עריכה</span>
+        </button>
+        <button class="control-btn btn-save" onclick="saveChanges()">
+            💾 שמור שינויים
+        </button>
+        <button class="control-btn btn-cancel" onclick="cancelChanges()">
+            ❌ בטל שינויים
+        </button>
+        <button class="control-btn btn-print" onclick="printReport()">
+            🖨️ הדפס
+        </button>
+        <button class="control-btn btn-export" onclick="exportToHTML()">
+            📥 ייצא HTML
+        </button>
+    </div>
+
+    <!-- אינדיקטור מצב עריכה -->
+    <div class="edit-mode-indicator" id="editIndicator">
+        ✏️ מצב עריכה פעיל
+    </div>
+
+    <!-- הודעות -->
+    <div class="toast" id="toast"></div>
+
     <div class="container">
         <div class="header">
             <h1 class="editable">⚠️ ניהול סיכונים</h1>
@@ -483,31 +651,164 @@
     </div>
 
     <script>
-        // הפיכת כל האלמנטים עם class="editable" לניתנים לעריכה
-        document.addEventListener('DOMContentLoaded', function() {
-            const editableElements = document.querySelectorAll('.editable');
-            editableElements.forEach(element => {
-                element.setAttribute('contenteditable', 'true');
-                element.addEventListener('focus', function() {
-                    this.style.outline = '2px solid #667eea';
-                });
-                element.addEventListener('blur', function() {
-                    this.style.outline = 'none';
-                });
-            });
-        });
+        let isEditMode = false;
+        let originalContent = '';
 
-        // פונקציה להדפסה
-        function printReport() {
-            window.print();
+        // הפעלה/כיבוי מצב עריכה
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const editableElements = document.querySelectorAll('.editable');
+            const editBtn = document.querySelector('.btn-edit');
+            const saveBtn = document.querySelector('.btn-save');
+            const cancelBtn = document.querySelector('.btn-cancel');
+            const indicator = document.getElementById('editIndicator');
+            const editBtnText = document.getElementById('editBtnText');
+
+            if (isEditMode) {
+                // שמירת תוכן מקורי
+                originalContent = document.querySelector('.container').innerHTML;
+                
+                // הפעלת עריכה
+                editableElements.forEach(element => {
+                    element.setAttribute('contenteditable', 'true');
+                });
+                
+                editBtn.style.background = 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)';
+                editBtnText.textContent = 'צא ממצב עריכה';
+                saveBtn.style.display = 'flex';
+                cancelBtn.style.display = 'flex';
+                indicator.style.display = 'block';
+                
+                showToast('מצב עריכה פעיל - תוכל לערוך כל טקסט', 'info');
+            } else {
+                // כיבוי עריכה
+                editableElements.forEach(element => {
+                    element.setAttribute('contenteditable', 'false');
+                });
+                
+                editBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                editBtnText.textContent = 'מצב עריכה';
+                saveBtn.style.display = 'none';
+                cancelBtn.style.display = 'none';
+                indicator.style.display = 'none';
+            }
         }
 
-        // הוספת כפתור הדפסה (אופציונלי)
-        window.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.key === 'p') {
+        // שמירת שינויים
+        function saveChanges() {
+            if (!isEditMode) return;
+            
+            originalContent = document.querySelector('.container').innerHTML;
+            showToast('השינויים נשמרו בהצלחה! ✓', 'success');
+            
+            // כיבוי מצב עריכה
+            toggleEditMode();
+        }
+
+        // ביטול שינויים
+        function cancelChanges() {
+            if (!isEditMode) return;
+            
+            if (confirm('האם אתה בטוח שברצונך לבטל את כל השינויים?')) {
+                document.querySelector('.container').innerHTML = originalContent;
+                showToast('השינויים בוטלו', 'info');
+                isEditMode = false;
+                
+                // איפוס כפתורים
+                const editBtn = document.querySelector('.btn-edit');
+                const saveBtn = document.querySelector('.btn-save');
+                const cancelBtn = document.querySelector('.btn-cancel');
+                const indicator = document.getElementById('editIndicator');
+                const editBtnText = document.getElementById('editBtnText');
+                
+                editBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                editBtnText.textContent = 'מצב עריכה';
+                saveBtn.style.display = 'none';
+                cancelBtn.style.display = 'none';
+                indicator.style.display = 'none';
+            }
+        }
+
+        // הדפסה
+        function printReport() {
+            // כיבוי מצב עריכה לפני הדפסה
+            if (isEditMode) {
+                const editableElements = document.querySelectorAll('.editable');
+                editableElements.forEach(element => {
+                    element.setAttribute('contenteditable', 'false');
+                });
+            }
+            
+            window.print();
+            
+            // החזרה למצב עריכה אם היה פעיל
+            if (isEditMode) {
+                const editableElements = document.querySelectorAll('.editable');
+                editableElements.forEach(element => {
+                    element.setAttribute('contenteditable', 'true');
+                });
+            }
+        }
+
+        // ייצוא ל-HTML
+        function exportToHTML() {
+            const content = document.documentElement.outerHTML;
+            const blob = new Blob([content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'דוח_ניהול_סיכונים_' + new Date().toISOString().split('T')[0] + '.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('הקובץ יורד למחשב שלך ✓', 'success');
+        }
+
+        // הצגת הודעות
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // קיצורי מקלדת
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + E למצב עריכה
+            if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                e.preventDefault();
+                toggleEditMode();
+            }
+            
+            // Ctrl/Cmd + S לשמירה
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (isEditMode) {
+                    saveChanges();
+                }
+            }
+            
+            // Ctrl/Cmd + P להדפסה
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
                 e.preventDefault();
                 printReport();
             }
+            
+            // Escape לביטול
+            if (e.key === 'Escape' && isEditMode) {
+                cancelChanges();
+            }
+        });
+
+        // שמירת תוכן מקורי בטעינה
+        document.addEventListener('DOMContentLoaded', function() {
+            originalContent = document.querySelector('.container').innerHTML;
         });
     </script>
 </body>
